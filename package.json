@@ -1,0 +1,48 @@
+{
+  "name": "metaai-reversed",
+  "version": "0.1.0",
+  "description": "Node.js library that talks to meta.ai's private web endpoints (anonymous / authenticated chat, Thinking mode, web search, vision, image generation) by reconstructing the browser's DGW WebSocket + protobuf protocol.",
+  "keywords": [
+    "meta-ai",
+    "meta",
+    "llama",
+    "muse-spark",
+    "unofficial",
+    "reverse-engineering",
+    "websocket",
+    "protobuf",
+    "streaming",
+    "image-generation",
+    "web-search"
+  ],
+  "homepage": "https://github.com/myounis1996/metaai-reversed#readme",
+  "bugs": {
+    "url": "https://github.com/myounis1996/metaai-reversed/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myounis1996/metaai-reversed.git"
+  },
+  "license": "MIT",
+  "author": "myounis1996 (https://github.com/myounis1996)",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=22.4"
+  },
+  "private": true,
+  "scripts": {
+    "lint": "node -e \"const cp=require('child_process'),fs=require('fs'),p=require('path');const walk=(d)=>!fs.existsSync(d)?[]:fs.readdirSync(d,{withFileTypes:true}).flatMap((e)=>e.isDirectory()?walk(p.join(d,e.name)):e.name.endsWith('.js')?[p.join(d,e.name)]:[]);const files=['index.js',...walk('src'),...walk('tests'),...walk('examples')];let bad=0;for(const f of files){try{cp.execFileSync(process.execPath,['--check',f],{stdio:['ignore','ignore','pipe']})}catch(e){bad++;console.error('SYNTAX ERROR '+f+'\\n'+String(e.stderr))}}console.log((files.length-bad)+'/'+files.length+' files parsed');process.exit(bad?1:0)\"",
+    "smoke": "node -e \"const lib=require('./');const need=['AnonChat','AuthChat','AuthImageGen','ImageGenRefusalError','CookieJar','MODES','openTurn','buildRequest','readResponse','ResponseState','uploadAttachment'];const missing=need.filter((k)=>!(k in lib));if(missing.length){console.error('missing exports: '+missing.join(', '));process.exit(1)}console.log('package loads — '+Object.keys(lib).length+' exports')\"",
+    "test": "node tests/offline.test.js",
+    "test:anon": "node tests/anon.test.js",
+    "test:auth": "node tests/auth.test.js",
+    "test:thinking": "node tests/thinking.test.js",
+    "test:search": "node tests/search.test.js",
+    "test:files": "node tests/files.test.js",
+    "test:image": "node tests/image.test.js"
+  }
+}

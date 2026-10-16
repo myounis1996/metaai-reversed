@@ -1,0 +1,20 @@
+# The style used throughout src/, tests/ and index.js:
+# 2-space indent, LF in git (core.autocrlf checks out CRLF on Windows), UTF-8,
+# no BOM, no trailing whitespace, trailing newline on every file.
+#
+# No max_line_length is declared on purpose: prose comments wrap around 80, but
+# a handful of lines (protocol constants, the package.json lint one-liner) are
+# very long by necessity and must not be reflowed.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Markdown uses two trailing spaces as a hard line break.
+trim_trailing_whitespace = false

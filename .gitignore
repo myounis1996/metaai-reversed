@@ -1,0 +1,40 @@
+# ── Credentials: never commit ─────────────────────────────────────────────
+# A meta.ai cookie export carries `ecto_1_sess`, a live session — anyone
+# holding it is logged in as you. Re-exporting produces `cookies (1).json` and
+# friends, so the patterns are deliberately wide. A .har is worse still: it has
+# full Cookie headers AND the `ecto1:` access token in the gateway URL.
+/secrets/
+*cookies*.json
+cookies*.json
+auth*.json
+token*.json
+session*.json
+secrets*.json
+*.cookies
+*.cookie
+.env
+.env.*
+!.env.example
+*.har
+*.pem
+*.key
+
+# ── Local / agent tooling ─────────────────────────────────────────────────
+.claude/
+.remember/
+.cursor/
+.aider*
+.idea/
+.vscode/
+CLAUDE.md
+
+# ── Generated artifacts ───────────────────────────────────────────────────
+node_modules/
+output/
+tests/output/
+examples/example-image.*
+*.log
+
+# ── OS ────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

@@ -1,0 +1,37 @@
+# What CI can check honestly. The live harnesses (tests/*.test.js other than
+# offline) talk to meta.ai for real and the authed ones need a live session
+# cookie — putting one in repo secrets would hand a Meta login to anyone who
+# can land a workflow change. So CI runs: every file parses, the package loads
+# with its public API, and the offline self-check (protobuf codec, DGW framing,
+# response renderer). Behaviour against the live service is checked by a human
+# running `npm run test:*` before a release.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.4 is the floor in engines (global WebSocket); 24 is the current LTS line.
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # Zero dependencies — nothing to install.
+      - run: npm run --silent lint
+      - run: npm run --silent smoke
+      - run: npm test --silent
