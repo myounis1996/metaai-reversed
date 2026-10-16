@@ -14,7 +14,7 @@ const DOC_IDS = {
 
 // POST one persisted query. Returns `data`; throws on HTTP or GraphQL errors.
 // Logged-in calls authenticate with cookies alone — no token header.
-async function graphql(docId, variables = {}, {cookie} = {}) {
+async function graphql(docId, variables = {}, {cookie, dispatcher} = {}) {
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
@@ -23,6 +23,7 @@ async function graphql(docId, variables = {}, {cookie} = {}) {
       ...(cookie ? {cookie} : {}),
     },
     body: JSON.stringify({doc_id: docId, variables}),
+    dispatcher,
   });
   const text = await response.text();
   let json = null;

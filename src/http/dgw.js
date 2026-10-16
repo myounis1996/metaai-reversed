@@ -66,9 +66,12 @@ function gatewayUrl(accessToken) {
 // Resolves once the request is on the wire, so connection/auth failures throw
 // here (before the caller hands a stream to anyone). Returns an async iterator
 // of raw Response protobuf chunks; breaking out of it closes the socket.
-async function openTurn({accessToken, conversationId, requestId, payload, timeoutMs = DEFAULT_TURN_TIMEOUT_MS}) {
+// `dispatcher` (an undici Dispatcher, e.g. a ProxyAgent) carries the upgrade
+// request; Node's WebSocket takes it as a non-standard option.
+async function openTurn({accessToken, conversationId, requestId, payload, timeoutMs = DEFAULT_TURN_TIMEOUT_MS, dispatcher}) {
   const ws = new WebSocket(gatewayUrl(accessToken), {
     headers: {origin: "https://www.meta.ai", "user-agent": SIMULATED_BROWSER.agent},
+    dispatcher,
   });
   ws.binaryType = "arraybuffer";
 

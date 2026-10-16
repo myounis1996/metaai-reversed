@@ -35,7 +35,7 @@ class AuthImageGen extends AuthBase {
     if (options.download) {
       await Promise.all(
         images.map(async (image) => {
-          const res = await fetch(image.url);
+          const res = await fetch(image.url, {dispatcher: this._dispatcher});
           if (!res.ok) throw new Error(`image download failed: ${res.status} ${res.statusText}`);
           image.bytes = Buffer.from(await res.arrayBuffer());
         })

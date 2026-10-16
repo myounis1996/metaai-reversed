@@ -1,16 +1,19 @@
 // Offline self-check for the pure parts: protobuf wire codec, the ecto Request
 // builder / Response reader, DGW framing, and the JSON-patch renderer
-// (including the streaming hold-back rules). No network, no cookies — this is
-// what `npm test` and CI run. The live harnesses are the other files here.
+// (including the streaming hold-back rules), plus a check that every request
+// rides a caller's dispatcher. No network, no cookies — this is what
+// `npm test` and CI run. The live harnesses are the other files here.
 
 const assert = require("assert");
 const {encode, decode, get, getMessage, getString} = require("../src/proto/wire");
 const {buildRequest, readResponse, offlineThreadingId} = require("../src/proto/ecto");
-const {buildFrame, parseFrame, buildDataFrame, FRAME} = require("../src/http/dgw");
+const {buildFrame, parseFrame, buildDataFrame, FRAME, openTurn} = require("../src/http/dgw");
 const {ResponseState} = require("../src/http/response");
-const {readAttachmentInput} = require("../src/http/upload");
+const {readAttachmentInput, uploadAttachment} = require("../src/http/upload");
 const {MODES, resolveMode} = require("../src/models");
 const {CookieJar} = require("../src/auth/CookieJar");
+const {AnonChat} = require("../src/clients/AnonChat");
+const {AuthImageGen} = require("../src/clients/AuthImageGen");
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
@@ -206,15 +209,53 @@ test("models + cookies: modes resolve by key or id; cookie shapes parse", () => 
   assert.strictEqual(jar.toHeader(), "ecto_1_sess=b%3Ac; wd=1920x911");
 });
 
-let failed = 0;
-for (const [name, fn] of tests) {
-  try {
-    fn();
-    console.log(`ok   ${name}`);
-  } catch (err) {
-    failed += 1;
-    console.error(`FAIL ${name}\n     ${err.message.split("\n").join("\n     ")}`);
+// A dispatcher that notes where each request was going and refuses it, so
+// nothing leaves the machine. Throwing from dispatch() fails a fetch or a
+// socket the same way on every undici version.
+test("dispatcher: the socket, GraphQL, uploads, the identity page and image downloads all ride it", async () => {
+  const seen = [];
+  const dispatcher = {
+    dispatch(opts) {
+      seen.push(opts.origin + opts.path);
+      throw new Error("offline");
+    },
+  };
+  const turn = {accessToken: "ecto1:x", conversationId: "c", requestId: "r", payload: Buffer.alloc(0), dispatcher};
+  await assert.rejects(openTurn(turn), /dgw: socket/);
+  await assert.rejects(new AnonChat({dispatcher}).complete("hi"));
+  await assert.rejects(uploadAttachment(Buffer.from("89504e47", "hex"), {accessToken: "x", dispatcher}));
+  const gen = new AuthImageGen({cookies: "datr=a; ecto_1_sess=b", dispatcher});
+  await assert.rejects(gen._getIdentity());
+  gen.complete = async function () {
+    // a turn that drew a picture, so generate() reaches the download
+    this._lastResponse = {text: "", images: [{url: "https://scontent.example.net/i.jpg"}], conversationId: "c"};
+    return "";
+  };
+  await assert.rejects(gen.generate("a fox", {download: true}));
+  await assert.rejects(gen.deleteConversation("c"));
+  const expected = [
+    /^https:\/\/gateway\.meta\.ai\/ws\/clippy\?/,
+    /^https:\/\/www\.meta\.ai\/api\/graphql$/,
+    /^https:\/\/rupload\.meta\.ai\/gen_ai_document_gen_ai_tenant\//,
+    /^https:\/\/www\.meta\.ai\/$/,
+    /^https:\/\/scontent\.example\.net\/i\.jpg$/,
+    /^https:\/\/www\.meta\.ai\/api\/graphql$/,
+  ];
+  assert.strictEqual(seen.length, expected.length, seen.join("\n"));
+  expected.forEach((pattern, i) => assert.match(seen[i], pattern));
+});
+
+(async () => {
+  let failed = 0;
+  for (const [name, fn] of tests) {
+    try {
+      await fn();
+      console.log(`ok   ${name}`);
+    } catch (err) {
+      failed += 1;
+      console.error(`FAIL ${name}\n     ${err.message.split("\n").join("\n     ")}`);
+    }
   }
-}
-console.log(`\n${tests.length - failed}/${tests.length} passed`);
-process.exit(failed ? 1 : 0);
+  console.log(`\n${tests.length - failed}/${tests.length} passed`);
+  process.exit(failed ? 1 : 0);
+})();

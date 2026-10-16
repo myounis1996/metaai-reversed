@@ -15,11 +15,16 @@ const {resolveMode} = require("../models");
 // remembers, per conversation id.
 //
 // Subclasses supply `_getIdentity({refresh})` → {userId, accessToken, loggedOut}.
+//
+// `dispatcher` (optional, an undici Dispatcher such as a ProxyAgent) carries
+// every request the instance makes: the DGW socket, uploads, GraphQL, the
+// identity page and image downloads. Unset, Node's global dispatcher is used.
 class BaseChat {
-  constructor({mode = "instant"} = {}) {
+  constructor({mode = "instant", dispatcher} = {}) {
     if (new.target === BaseChat) {
       throw new Error("BaseChat is abstract — instantiate AnonChat or AuthChat");
     }
+    this._dispatcher = dispatcher;
     this._defaultMode = resolveMode(mode).id;
     // One prompt session per instance, like one browser tab.
     this._sessionId = randomUUID();
@@ -55,7 +60,7 @@ class BaseChat {
     let identity = await this._getIdentity();
     const files = Array.isArray(options.files) ? options.files : [];
     const attachments = await Promise.all(
-      files.map((file) => uploadAttachment(file, {accessToken: identity.accessToken}))
+      files.map((file) => uploadAttachment(file, {accessToken: identity.accessToken, dispatcher: this._dispatcher}))
     );
 
     const requestId = randomUUID();
@@ -65,6 +70,7 @@ class BaseChat {
         conversationId: conversation.id,
         requestId,
         timeoutMs: options.timeoutMs,
+        dispatcher: this._dispatcher,
         payload: buildRequest({
           userId: who.userId,
           loggedOut: who.loggedOut,

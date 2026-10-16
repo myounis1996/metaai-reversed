@@ -56,9 +56,10 @@ function readAttachmentInput(input) {
   return {bytes, name, mime};
 }
 
-async function uploadAttachment(input, {accessToken}) {
+async function uploadAttachment(input, {accessToken, dispatcher}) {
   const {bytes, name, mime} = readAttachmentInput(input);
   const response = await fetch(`${UPLOAD_ENDPOINT}/${randomUUID()}`, {
+    dispatcher,
     method: "POST",
     headers: {
       ...buildBrowserHeaders({accept: "*/*"}),

@@ -127,6 +127,16 @@ There is no image endpoint and no image model to pick. You ask the chat for a pi
 
 Logged out, ask for an image and Meta AI will cheerfully describe the beautiful image it has made for you. There is no image. It's very confident about it, though.
 
+### Through a proxy
+
+Every client takes an optional `dispatcher`: any undici `Dispatcher`, such as a `ProxyAgent`. The socket, GraphQL, uploads, the identity page and image downloads all go through it.
+
+```js
+const {ProxyAgent} = require("undici"); // yours to install; ours stays empty
+
+const gen = new AuthImageGen({cookiesPath: "./cookies.json", dispatcher: new ProxyAgent("http://user:pass@proxy:8080")});
+```
+
 ---
 
 ## Cookies (logged-in only)

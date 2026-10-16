@@ -12,8 +12,8 @@ const HOME_URL = "https://www.meta.ai/";
 // So identity = one GET of https://www.meta.ai/ with the cookies. Cached per
 // instance and re-fetched when a turn fails to open.
 class AuthBase extends BaseChat {
-  constructor({cookies, cookiesPath, mode} = {}) {
-    super({mode});
+  constructor({cookies, cookiesPath, mode, dispatcher} = {}) {
+    super({mode, dispatcher});
     if (new.target === AuthBase) {
       throw new Error("AuthBase is abstract — instantiate AuthChat or AuthImageGen");
     }
@@ -41,6 +41,7 @@ class AuthBase extends BaseChat {
         "upgrade-insecure-requests": "1",
         cookie: this._cookies.toHeader(),
       },
+      dispatcher: this._dispatcher,
     });
     this._cookies.absorb(response.headers.getSetCookie());
     const html = await response.text();
@@ -61,7 +62,11 @@ class AuthBase extends BaseChat {
   // ponytail: first page only (what the sidebar loads); add cursor paging when
   // someone needs more than that.
   async listConversations() {
-    const data = await graphql(DOC_IDS.listConversations, {}, {cookie: this._cookies.toHeader()});
+    const data = await graphql(
+      DOC_IDS.listConversations,
+      {},
+      {cookie: this._cookies.toHeader(), dispatcher: this._dispatcher}
+    );
     const edges = [
       ...((data.pinnedConversations && data.pinnedConversations.edges) || []),
       ...((data.unpinnedConversations && data.unpinnedConversations.edges) || []),
@@ -79,7 +84,7 @@ class AuthBase extends BaseChat {
     const data = await graphql(
       DOC_IDS.deleteConversation,
       {input: {id: conversationId}},
-      {cookie: this._cookies.toHeader()}
+      {cookie: this._cookies.toHeader(), dispatcher: this._dispatcher}
     );
     const result = data && data.deleteConversation;
     if (!result || !result.success) {

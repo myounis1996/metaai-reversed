@@ -12,8 +12,8 @@ const {graphql, DOC_IDS} = require("../http/graphql");
 // after (like one browser tab). Logged out, the model answers text only —
 // image requests come back as prose without an image.
 class AnonChat extends BaseChat {
-  constructor({mode} = {}) {
-    super({mode});
+  constructor({mode, dispatcher} = {}) {
+    super({mode, dispatcher});
     this._identity = null;
   }
 
@@ -26,7 +26,7 @@ class AnonChat extends BaseChat {
 
   async _getIdentity({refresh = false} = {}) {
     if (this._identity && !refresh) return this._identity;
-    const data = await graphql(DOC_IDS.createTempUser, {});
+    const data = await graphql(DOC_IDS.createTempUser, {}, {dispatcher: this._dispatcher});
     const user = data && data.createTempUser;
     if (!user || !user.success || !user.accessToken || !user.abraUserId) {
       throw new Error(
