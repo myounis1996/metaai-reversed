@@ -30,4 +30,20 @@ async function testGenerate() {
   if (!result.deleted) throw new Error("conversation was not deleted after generation");
 }
 
-runCases("image", [["generate", testGenerate]]);
+// No size option exists; orientation is asked for in words. Checks that the
+// model still honours it (2026-10-16: portrait 9:16 → 1152x2048).
+async function testPortrait() {
+  console.log("\n── [image] orientation from the prompt ────────────────────");
+  const prompt = "a lighthouse in heavy rain, portrait orientation (vertical, 9:16)";
+  printPrompt(prompt);
+  const gen = new AuthImageGen({cookiesPath: requireCookies()});
+  const {images} = await gen.generate(prompt);
+  const {width, height} = images[0];
+  console.log(`size: ${width}x${height}`);
+  if (!(height > width)) throw new Error(`asked for portrait, got ${width}x${height}`);
+}
+
+runCases("image", [
+  ["generate", testGenerate],
+  ["portrait", testPortrait],
+]);

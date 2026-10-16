@@ -110,6 +110,19 @@ const {images} = await gen.generate("a lighthouse in heavy rain", {download: tru
 fs.writeFileSync("out.webp", images[0].bytes); // 1920×1280, very moody
 ```
 
+Want a different shape? There's no size option, because the website doesn't have one either. You just *say it*, and it listens:
+
+| put in the prompt | you get |
+|---|---|
+| nothing | 1920×1280 |
+| `portrait, 9:16` | 1152×2048 |
+| `landscape, 16:9` | 2048×1152 |
+| `square, 1:1` | 1600×1600 |
+
+```js
+await gen.generate("a lighthouse in heavy rain, portrait orientation (9:16)");
+```
+
 There is no image endpoint and no image model to pick. You ask the chat for a picture, the chat calls a tool named `imagine`, and a picture falls out of the answer. If the model replies with words instead, you get an `ImageGenRefusalError` with the words attached.
 
 Logged out, ask for an image and Meta AI will cheerfully describe the beautiful image it has made for you. There is no image. It's very confident about it, though.

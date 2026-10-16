@@ -15,7 +15,9 @@ class ImageGenRefusalError extends Error {
 // its `imagine` tool when the prompt asks for a picture, and the image arrives
 // as a GenAIImagePrimitive section of the normal answer. So generate() is a
 // chat turn that insists on an image. There is no image-model or size knob to
-// send — the web client has none either; describe orientation in the prompt.
+// send — the web client has none either. Orientation goes in the prompt, and
+// the model honours it (measured 2026-10-16): default 1920x1280,
+// "portrait 9:16" 1152x2048, "landscape 16:9" 2048x1152, "square 1:1" 1600x1600.
 class AuthImageGen extends AuthBase {
   // Options: download (attach image.bytes), keepConversation (default false —
   // the conversation is deleted from history after the images are read),
