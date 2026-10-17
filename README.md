@@ -137,6 +137,8 @@ const {ProxyAgent} = require("undici"); // yours to install; ours stays empty
 const gen = new AuthImageGen({cookiesPath: "./cookies.json", dispatcher: new ProxyAgent("http://user:pass@proxy:8080")});
 ```
 
+Datacenter and proxy IPs meet meta.ai's bot check on the first page load: a 403 whose script POSTs to `/__rd_verify_…` and reloads. The client does the same, once, and keeps the `rd_challenge` cookie it gets.
+
 ---
 
 ## Cookies (logged-in only)
@@ -162,7 +164,7 @@ await chat.listConversations();          // [{id, title, updatedAt, pinned}]
 await chat.deleteConversation(id);
 ```
 
-`AuthImageGen` does this for you after every picture (`keepConversation: true` to opt out). The image URLs survive the deletion; we checked.
+`AuthImageGen` does this for you after every picture (`keepConversation: true` to opt out). The image URLs die with the conversation (a fetch after the delete answers 404), so pass `download: true` to keep the bytes.
 
 ---
 
@@ -216,6 +218,7 @@ It will. Meta ships fast and owes us nothing.
 | symptom | translation |
 |---|---|
 | `meta.ai served no access token` | your cookies expired. Re-export them |
+| `… its bot check (/__rd_verify_) answered again after one pass` | the bot check wants more than a cookie now. Try a home IP |
 | `gateway rejected the access token (close 4003)` | token went stale. Retried once automatically |
 | `graphql … failed` | a query id rotated after a Meta deploy |
 | `meta.ai refused the turn: GLOBAL_RATE_LIMITED` | go outside for a bit |

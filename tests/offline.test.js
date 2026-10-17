@@ -1,10 +1,12 @@
 // Offline self-check for the pure parts: protobuf wire codec, the ecto Request
 // builder / Response reader, DGW framing, and the JSON-patch renderer
 // (including the streaming hold-back rules), plus a check that every request
-// rides a caller's dispatcher. No network, no cookies — this is what
-// `npm test` and CI run. The live harnesses are the other files here.
+// rides a caller's dispatcher and one that the identity call passes meta.ai's
+// bot check (against a server on 127.0.0.1). No network, no cookies — this is
+// what `npm test` and CI run. The live harnesses are the other files here.
 
 const assert = require("assert");
+const http = require("http");
 const {encode, decode, get, getMessage, getString} = require("../src/proto/wire");
 const {buildRequest, readResponse, offlineThreadingId} = require("../src/proto/ecto");
 const {buildFrame, parseFrame, buildDataFrame, FRAME, openTurn} = require("../src/http/dgw");
@@ -243,6 +245,54 @@ test("dispatcher: the socket, GraphQL, uploads, the identity page and image down
   ];
   assert.strictEqual(seen.length, expected.length, seen.join("\n"));
   expected.forEach((pattern, i) => assert.match(seen[i], pattern));
+});
+
+// A local stand-in for www.meta.ai behind a datacenter IP: the home page is the
+// bot check (a 403 whose script POSTs to /__rd_verify_…) until the request
+// carries the cookie that POST sets. `fetch` is pointed at it for the test.
+test("identity: passes meta.ai's bot check once, on the client's jar and dispatcher", async () => {
+  let stubborn = false;
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    seen.push(`${req.method} ${req.url} ${req.headers.cookie}`);
+    if (req.method === "POST" && req.url === "/__rd_verify_Ab3-x_9?challenge=3") {
+      res.writeHead(200, {"set-cookie": "rd_challenge=ok; Max-Age=86400; Domain=meta.ai; Path=/; Secure; HttpOnly"});
+      res.end();
+    } else if (stubborn || !/rd_challenge=ok/.test(req.headers.cookie || "")) {
+      res.writeHead(403, {"content-type": "text/html"});
+      res.end("<script>function executeChallenge() { fetch('/__rd_verify_Ab3-x_9?challenge=3', { method: 'POST', }) .finally(() => window.location.reload()); }</script>");
+    } else {
+      res.writeHead(200, {"content-type": "text/html"});
+      res.end('<script>{"viewerId":"42","accessToken":"ecto1:t0k"}</script>');
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const local = `http://127.0.0.1:${server.address().port}`;
+  const dispatcher = {dispatch() {}};
+  const realFetch = global.fetch;
+  global.fetch = (url, init) => {
+    assert.strictEqual(init.dispatcher, dispatcher, `${init.method} ${url} left the client's dispatcher`);
+    return realFetch(String(url).replace("https://www.meta.ai", local), {...init, dispatcher: undefined});
+  };
+  try {
+    const gen = new AuthImageGen({cookies: "datr=a; ecto_1_sess=b", dispatcher});
+    assert.deepStrictEqual(await gen._getIdentity(), {userId: "42", accessToken: "ecto1:t0k", loggedOut: false});
+    assert.strictEqual(gen.cookies.get("rd_challenge"), "ok");
+    assert.deepStrictEqual(seen, [
+      "GET / datr=a; ecto_1_sess=b",
+      "POST /__rd_verify_Ab3-x_9?challenge=3 datr=a; ecto_1_sess=b",
+      "GET / datr=a; ecto_1_sess=b; rd_challenge=ok",
+    ]);
+    // A check that answers again after one pass is reported, not chased.
+    stubborn = true;
+    seen.length = 0;
+    await assert.rejects(new AuthImageGen({cookies: "datr=a; ecto_1_sess=b", dispatcher})._getIdentity(), /bot check .* again after one pass/);
+    assert.strictEqual(seen.length, 3, seen.join("\n"));
+  } finally {
+    global.fetch = realFetch;
+    server.closeAllConnections();
+    server.close();
+  }
 });
 
 (async () => {
